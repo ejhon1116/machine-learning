@@ -1,0 +1,1 @@
+sign_lang_path = '/Users/ejhong/.cache/kagglehub/datasets/datamunge/sign-language-mnist/versions/1'
