@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import tempfile
 from kaggle_data.paths import *
 
+EPOCHS = 7
+
 # Custom learning rate scheduler with better decay strategy
 @saving.register_keras_serializable(package="LR")
 class WarmupCosineDecay(tf.keras.optimizers.schedules.LearningRateSchedule):
@@ -44,7 +46,7 @@ def create_improved_model():
     inputs = layers.Input(shape=(28, 28, 1))
     
     # Image augmentation
-    x = layers.RandomRotation(0.1)(inputs)
+    x = layers.RandomRotation(0.15)(inputs)
     x = layers.RandomZoom(0.1)(x)
     x = layers.RandomTranslation(0.1, 0.1)(x)
 
@@ -59,41 +61,42 @@ def create_improved_model():
     skip = x
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
+    #
+
     x = layers.Conv2D(32, 3, padding='same')(x)
     x = layers.BatchNormalization()(x)
     x = layers.Add()([x, skip])  # Residual connection
     x = layers.ReLU()(x)
+    x = layers.Dropout(0.2)(x)
     x = layers.MaxPooling2D()(x)
-    
-    # Second conv block
+
+    #Second
     x = layers.Conv2D(64, 3, padding='same')(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
-    x = layers.Dropout(0.5)(x)
+    #
+
     x = layers.Conv2D(64, 3, padding='same')(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
-    x = layers.Dropout(0.3)(x)
+    x = layers.Dropout(0.25)(x)
 
     #third
-    x = layers.Conv2D(96, 3, padding='same')(x)
+    x = layers.Conv2D(128, 3, padding='same')(x)
     skip = x
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
-    x = layers.Conv2D(96, 3, padding='same')(x)
-    x = layers.BatchNormalization()(x)
-    x = layers.Add()([x, skip])  # Residual connection
-    x = layers.ReLU()(x)
-    x = layers.MaxPooling2D()(x)
-    x = layers.Dropout(0.4)(x)
+    #
 
     x = layers.Conv2D(128, 3, padding='same')(x)
     x = layers.BatchNormalization()(x)
+    x = layers.Add()([x, skip])  # Residual connection
     x = layers.ReLU()(x)
+
     
     # Dense layers
     x = layers.GlobalAveragePooling2D()(x)
-    x = layers.Dense(256)(x)
+    x = layers.Dense(128)(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
     x = layers.Dropout(0.5)(x)
@@ -108,7 +111,7 @@ def train_model(train_images, train_labels):
     model = create_improved_model()
     
     # Learning rate schedule
-    total_steps = (len(train_images) // 32) * 30 # based on epoch count
+    total_steps = (len(train_images) // 32) * EPOCHS # based on epoch count
     lr_schedule = WarmupCosineDecay(
         initial_learning_rate=1e-3,
         decay_steps=total_steps,
@@ -159,7 +162,7 @@ def train_model(train_images, train_labels):
     history = model.fit(
         train_images,
         train_labels,
-        epochs=30,
+        epochs=EPOCHS,
         callbacks=callbacks_list
     )
     
@@ -168,6 +171,6 @@ def train_model(train_images, train_labels):
 if __name__ == "__main__":
     data = pandas.read_csv(Path(sign_lang_path + "sign_mnist_train.csv")).values
     train_labels = data[:, 0]
-    train_images = ((data[:, 1:]).reshape(27455, 28, 28) / 255.0)
+    train_images = ((data[:, 1:]) / 255.0).reshape(27455, 28, 28)
 
     model, history = train_model(train_images, train_labels)
